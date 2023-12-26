@@ -1,29 +1,35 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
+	"context"
+	"log"
+	"net"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	"github.com/abanuelo/cinnamon-go/cinnamon"
+	"google.golang.org/grpc"
 )
 
-func main() {
-	router := chi.NewRouter()
-	router.Use(middleware.Logger)
-
-	router.Get("/hello", basicHander)
-
-	server := &http.Server{
-		Addr:    ":3000",
-		Handler: router,
-	}
-	err := server.ListenAndServe()
-	if err != nil {
-		fmt.Println("failed to listen to server", err)
-	}
+type myCinnamonServer struct {
+	cinnamon.UnimplementedInvoicerServer
 }
 
-func basicHander(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Hello, world!"))
+func (s myCinnamonServer) Create(ctx context.Context, req *cinnamon.CreateRequest) (*cinnamon.CreateResponse, error) {
+	return &cinnamon.CreateResponse{
+		Pdf:  []byte("test"),
+		Docx: []byte("test"),
+	}, nil
+}
+
+func main() {
+	lis, err := net.Listen("tcp", ":8089")
+	if err != nil {
+		log.Fatalf("Cannot create listener: %s", err)
+	}
+	serverRegistrar := grpc.NewServer()
+	service := &myCinnamonServer{}
+	cinnamon.RegisterInvoicerServer(serverRegistrar, service)
+	err = serverRegistrar.Serve(lis)
+	if err != nil {
+		log.Fatalf("Impossible to service: %s", err)
+	}
 }

@@ -1,0 +1,4 @@
+package: cinnamon-go
+import:
+- package: github.com/go-chi/chi
+  version: v5.0.11
