@@ -19,89 +19,91 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	Invoicer_Create_FullMethodName = "/Invoicer/Create"
+	Cinnamon_Intercept_FullMethodName = "/Cinnamon/Intercept"
 )
 
-// InvoicerClient is the client API for Invoicer service.
+// CinnamonClient is the client API for Cinnamon service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type InvoicerClient interface {
-	Create(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*CreateResponse, error)
+type CinnamonClient interface {
+	// rpc Create(CreateRequest) returns (CreateResponse);
+	Intercept(ctx context.Context, in *InterceptRequest, opts ...grpc.CallOption) (*InterceptResponse, error)
 }
 
-type invoicerClient struct {
+type cinnamonClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewInvoicerClient(cc grpc.ClientConnInterface) InvoicerClient {
-	return &invoicerClient{cc}
+func NewCinnamonClient(cc grpc.ClientConnInterface) CinnamonClient {
+	return &cinnamonClient{cc}
 }
 
-func (c *invoicerClient) Create(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*CreateResponse, error) {
-	out := new(CreateResponse)
-	err := c.cc.Invoke(ctx, Invoicer_Create_FullMethodName, in, out, opts...)
+func (c *cinnamonClient) Intercept(ctx context.Context, in *InterceptRequest, opts ...grpc.CallOption) (*InterceptResponse, error) {
+	out := new(InterceptResponse)
+	err := c.cc.Invoke(ctx, Cinnamon_Intercept_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// InvoicerServer is the server API for Invoicer service.
-// All implementations must embed UnimplementedInvoicerServer
+// CinnamonServer is the server API for Cinnamon service.
+// All implementations must embed UnimplementedCinnamonServer
 // for forward compatibility
-type InvoicerServer interface {
-	Create(context.Context, *CreateRequest) (*CreateResponse, error)
-	mustEmbedUnimplementedInvoicerServer()
+type CinnamonServer interface {
+	// rpc Create(CreateRequest) returns (CreateResponse);
+	Intercept(context.Context, *InterceptRequest) (*InterceptResponse, error)
+	mustEmbedUnimplementedCinnamonServer()
 }
 
-// UnimplementedInvoicerServer must be embedded to have forward compatible implementations.
-type UnimplementedInvoicerServer struct {
+// UnimplementedCinnamonServer must be embedded to have forward compatible implementations.
+type UnimplementedCinnamonServer struct {
 }
 
-func (UnimplementedInvoicerServer) Create(context.Context, *CreateRequest) (*CreateResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Create not implemented")
+func (UnimplementedCinnamonServer) Intercept(context.Context, *InterceptRequest) (*InterceptResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Intercept not implemented")
 }
-func (UnimplementedInvoicerServer) mustEmbedUnimplementedInvoicerServer() {}
+func (UnimplementedCinnamonServer) mustEmbedUnimplementedCinnamonServer() {}
 
-// UnsafeInvoicerServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to InvoicerServer will
+// UnsafeCinnamonServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to CinnamonServer will
 // result in compilation errors.
-type UnsafeInvoicerServer interface {
-	mustEmbedUnimplementedInvoicerServer()
+type UnsafeCinnamonServer interface {
+	mustEmbedUnimplementedCinnamonServer()
 }
 
-func RegisterInvoicerServer(s grpc.ServiceRegistrar, srv InvoicerServer) {
-	s.RegisterService(&Invoicer_ServiceDesc, srv)
+func RegisterCinnamonServer(s grpc.ServiceRegistrar, srv CinnamonServer) {
+	s.RegisterService(&Cinnamon_ServiceDesc, srv)
 }
 
-func _Invoicer_Create_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateRequest)
+func _Cinnamon_Intercept_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InterceptRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(InvoicerServer).Create(ctx, in)
+		return srv.(CinnamonServer).Intercept(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Invoicer_Create_FullMethodName,
+		FullMethod: Cinnamon_Intercept_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InvoicerServer).Create(ctx, req.(*CreateRequest))
+		return srv.(CinnamonServer).Intercept(ctx, req.(*InterceptRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// Invoicer_ServiceDesc is the grpc.ServiceDesc for Invoicer service.
+// Cinnamon_ServiceDesc is the grpc.ServiceDesc for Cinnamon service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var Invoicer_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "Invoicer",
-	HandlerType: (*InvoicerServer)(nil),
+var Cinnamon_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "Cinnamon",
+	HandlerType: (*CinnamonServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Create",
-			Handler:    _Invoicer_Create_Handler,
+			MethodName: "Intercept",
+			Handler:    _Cinnamon_Intercept_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

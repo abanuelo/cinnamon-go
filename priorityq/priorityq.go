@@ -1,5 +1,7 @@
 package priorityq
 
+import "fmt"
+
 // Item represents an item in the priority queue.
 type Item struct {
 	Value    interface{}
@@ -35,4 +37,14 @@ func (pq *PriorityQueue) Pop() interface{} {
 	item := old[n-1]
 	*pq = old[0 : n-1]
 	return item
+}
+
+func (pq PriorityQueue) PrintContents() string {
+	var result string
+
+	for _, item := range pq {
+		result += fmt.Sprintf("Value: %s, Priority: %d\n", item.Value, item.Priority)
+	}
+
+	return result
 }
