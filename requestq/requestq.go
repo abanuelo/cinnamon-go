@@ -29,7 +29,7 @@ func Worker(worker int, pq *priorityq.PriorityQueue, wg *sync.WaitGroup, mu *syn
 				inflight += 1
 				fmt.Printf("Current inflight: %d with worker id: %d\n", inflight, worker)
 				req := heap.Pop(pq).(*priorityq.Item)
-				fmt.Println(pq.PrintContents())
+				req.Processed = "processed"
 				mu.Unlock()
 				go processRequest(*req)
 			} else {

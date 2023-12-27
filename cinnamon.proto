@@ -9,6 +9,7 @@ message InterceptRequest {
     int64 priority = 1;
     string route = 2;
     google.protobuf.Timestamp arrival = 3;
+    string processed = 4;
 }
 
 message InterceptResponse {

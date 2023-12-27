@@ -9,9 +9,10 @@ import (
 
 // Item represents an item in the priority queue.
 type Item struct {
-	Value    interface{}
-	Priority int
-	Arrival  time.Time
+	Value     interface{}
+	Priority  int
+	Arrival   time.Time
+	Processed string
 }
 
 // PriorityQueue is a min-heap implementation.
@@ -66,7 +67,8 @@ func RemoveOldItems(pq *PriorityQueue, maxAge time.Duration, mu *sync.Mutex) {
 			// for len(*pq) > 0 && currentTime.Sub((*pq)[0].Arrival) > maxAge {
 			if len(*pq) > 0 && currentTime.Sub((*pq)[0].Arrival) > maxAge {
 				item := heap.Pop(pq).(*Item)
-				fmt.Printf("TIMEOUT: Removed item: %s, Priority: %d, Arrival: %v\n", item.Value, item.Priority, item.Arrival)
+				// fmt.Printf("TIMEOUT: Removed item: %s, Priority: %d, Arrival: %v\n", item.Value, item.Priority, item.Arrival)
+				item.Processed = "timeout"
 			}
 			mu.Unlock()
 		}
