@@ -1,11 +1,17 @@
 package priorityq
 
-import "fmt"
+import (
+	"container/heap"
+	"fmt"
+	"sync"
+	"time"
+)
 
 // Item represents an item in the priority queue.
 type Item struct {
 	Value    interface{}
 	Priority int
+	Arrival  time.Time
 }
 
 // PriorityQueue is a min-heap implementation.
@@ -39,6 +45,7 @@ func (pq *PriorityQueue) Pop() interface{} {
 	return item
 }
 
+// Prints queue contents
 func (pq PriorityQueue) PrintContents() string {
 	var result string
 
@@ -47,4 +54,21 @@ func (pq PriorityQueue) PrintContents() string {
 	}
 
 	return result
+}
+
+func RemoveOldItems(pq *PriorityQueue, maxAge time.Duration, mu *sync.Mutex) {
+	for {
+		select {
+		case <-time.After(maxAge):
+			currentTime := time.Now()
+
+			mu.Lock()
+			// for len(*pq) > 0 && currentTime.Sub((*pq)[0].Arrival) > maxAge {
+			if len(*pq) > 0 && currentTime.Sub((*pq)[0].Arrival) > maxAge {
+				item := heap.Pop(pq).(*Item)
+				fmt.Printf("TIMEOUT: Removed item: %s, Priority: %d, Arrival: %v\n", item.Value, item.Priority, item.Arrival)
+			}
+			mu.Unlock()
+		}
+	}
 }

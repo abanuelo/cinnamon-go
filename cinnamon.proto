@@ -1,31 +1,30 @@
 syntax = "proto3";
 option go_package = "github.com/abanuelo/cinnamon-go/cinnamon";
-
-// message Amount {
-//     int64 amount = 1;
-//     string currency = 2;
-// }
-
-// message CreateRequest {
-//     Amount amount = 1;
-//     string from = 2;
-//     string to = 3; 
-// }
-
-// message CreateResponse {
-//     bytes pdf = 1;
-//     bytes docx = 2;
-// }
+import "google/protobuf/timestamp.proto";
+// import "google/rpc/status.proto";
 
 // Testing adding items to a priority queue
+// arrival is added for timeout from priority queue
 message InterceptRequest {
     int64 priority = 1;
     string route = 2;
+    google.protobuf.Timestamp arrival = 3;
 }
+
 message InterceptResponse {
     bool accepted = 1;
     string message = 2;
 }
+
+// Custom gRPC status code for rate limiting
+// extend google.rpc.Status {
+//     RateLimitExceeded rate_limit_exceeded = 1000;
+//   }
+  
+//   message RateLimitExceeded {
+//     // Additional information for rate-limiting error
+//     string details = 1;
+//   }
 
 service Cinnamon {
     // rpc Create(CreateRequest) returns (CreateResponse);
