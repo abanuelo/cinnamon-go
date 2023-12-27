@@ -36,5 +36,6 @@ func Worker(worker int, pq *priorityq.PriorityQueue, wg *sync.WaitGroup, mu *syn
 				mu.Unlock()
 			}
 		}
+		// time.Sleep(2 * time.Second)
 	}
 }

@@ -74,6 +74,24 @@ func (s CinnamonServiceServer) Intercept(ctx context.Context, req *cinnamon.Inte
 	}
 }
 
+func checkPriorityQueue(pq *priorityq.PriorityQueue, mu *sync.Mutex) {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			fmt.Println("Job: Checking Priority Queue...")
+			// Your job logic goes here
+			mu.Lock()
+			if pq.Len() > 0 {
+				fmt.Println("IN NEED OF PID CONTROLLER")
+			}
+			mu.Unlock()
+		}
+	}
+}
+
 func main() {
 	pq := make(priorityq.PriorityQueue, 0)
 	var mutex sync.Mutex //Locking
@@ -107,6 +125,9 @@ func main() {
 
 	// Start the goroutine for timeout of items in pq, setting it to a second for now
 	go priorityq.RemoveOldItems(&pq, MAX_AGE, &mutex)
+
+	// Running every 10 seconds to check if PQ is still full
+	go checkPriorityQueue(&pq, &mutex)
 
 	// Keep the main goroutine running
 	select {}
