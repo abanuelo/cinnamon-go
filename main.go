@@ -20,6 +20,8 @@ import (
 var TIER_COHORT_THRESHOLD = 384
 var NUM_WORKERS = 2
 var MAX_AGE = 1 * time.Second
+var IN float64 = 0.0
+var OUT float64 = 0.0
 
 type CinnamonServiceServer struct {
 	cinnamon.UnimplementedCinnamonServer
@@ -44,6 +46,7 @@ func (s CinnamonServiceServer) Intercept(ctx context.Context, req *cinnamon.Inte
 		item := priorityq.Item{Value: req.Route, Priority: int(req.Priority), Arrival: time.Now(), Processed: "no"}
 		s.mu.Lock()
 		heap.Push(s.PriorityQueue, &item)
+		IN += 1
 		s.mu.Unlock()
 
 		var wg sync.WaitGroup
@@ -85,7 +88,21 @@ func checkPriorityQueue(pq *priorityq.PriorityQueue, mu *sync.Mutex) {
 			// Your job logic goes here
 			mu.Lock()
 			if pq.Len() > 0 {
+				fmt.Println("=========================================")
 				fmt.Println("IN NEED OF PID CONTROLLER")
+				fmt.Println(IN, OUT)
+				fmt.Println(requestq.INFLIGHT_LIMIT, requestq.CURR_INFLIGHT)
+				P := 0.0
+				if OUT != 0 {
+					P = (IN - (OUT + (requestq.INFLIGHT_LIMIT - requestq.CURR_INFLIGHT))) / OUT
+				} else {
+					P = (IN - (OUT + (requestq.INFLIGHT_LIMIT - requestq.CURR_INFLIGHT))) / requestq.INFLIGHT_LIMIT
+				}
+
+				fmt.Printf("P: %f\n", P)
+				fmt.Println("=========================================")
+				IN = 0.0
+				OUT = 0.0
 			}
 			mu.Unlock()
 		}
@@ -120,7 +137,7 @@ func main() {
 	// Start worker goroutines
 	for i := 0; i < NUM_WORKERS; i++ {
 		wg.Add(i)
-		go requestq.Worker(i, &pq, &wg, &mutex)
+		go requestq.Worker(i, &pq, &wg, &mutex, &OUT)
 	}
 
 	// Start the goroutine for timeout of items in pq, setting it to a second for now
