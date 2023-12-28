@@ -1,161 +1,64 @@
 package main
 
 import (
-	"container/heap"
-	"context"
-	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"sync"
-	"time"
 
 	"github.com/abanuelo/cinnamon-go/cinnamon"
-	"github.com/abanuelo/cinnamon-go/circularq"
-	"github.com/abanuelo/cinnamon-go/priorityq"
-	"github.com/abanuelo/cinnamon-go/requestq"
-	"google.golang.org/grpc"
+	"github.com/abanuelo/cinnamon-go/queues"
+	"github.com/go-chi/chi"
 )
 
-// Total of 768 different priorities, initialized to middle
-// 0-5 tiers where 0 > 5 and 0-127 cohorts where 0 > 127
-var TIER_COHORT_THRESHOLD = 384
-var NUM_WORKERS = 2
-var MAX_AGE = 1 * time.Second
-var IN float64 = 0.0
-var OUT float64 = 0.0
-var MAX_HISTORY = 1000
-
-type CinnamonServiceServer struct {
-	cinnamon.UnimplementedCinnamonServer
-	PriorityQueue *priorityq.PriorityQueue
-	mu            *sync.Mutex
-}
-
-func waitForChange(item *priorityq.Item, wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	for item.Processed != "processed" && item.Processed != "timeout" {
-		time.Sleep(100 * time.Millisecond)
-		fmt.Println("Sleeping...still at no")
-	}
-
-	fmt.Println("item.Processed value changed")
-	fmt.Println(item.Processed)
-}
-
-func (s CinnamonServiceServer) Intercept(ctx context.Context, req *cinnamon.InterceptRequest) (*cinnamon.InterceptResponse, error) {
-	if int(req.Priority) <= TIER_COHORT_THRESHOLD {
-		item := priorityq.Item{Value: req.Route, Priority: int(req.Priority), Arrival: time.Now(), Processed: "no"}
-		s.mu.Lock()
-		heap.Push(s.PriorityQueue, &item)
-		IN += 1
-		s.mu.Unlock()
-
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go waitForChange(&item, &wg)
-		wg.Wait()
-
-		accepted := true
-		message := ""
-		if item.Processed == "processed" {
-			accepted = true
-			message = "Processed"
-		} else if item.Processed == "timeout" {
-			accepted = false
-			message = "Timed Out!"
-		}
-
-		return &cinnamon.InterceptResponse{
-			Accepted: accepted,
-			Message:  message,
-		}, nil
-	} else {
-		result := fmt.Sprintf("Exceeds current threshold: %d", TIER_COHORT_THRESHOLD)
-		return &cinnamon.InterceptResponse{
-			Accepted: false,
-			Message:  result,
-		}, nil
-	}
-}
-
-func checkPriorityQueue(pq *priorityq.PriorityQueue, cq *circularq.CircularQueue, mu *sync.Mutex) {
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			fmt.Println("Job: Checking Priority Queue...")
-			// Your job logic goes here
-			mu.Lock()
-			if pq.Len() > 0 {
-				fmt.Println("=========================================")
-				fmt.Println("IN NEED OF PID CONTROLLER")
-				fmt.Println(IN, OUT)
-				fmt.Println(requestq.INFLIGHT_LIMIT, requestq.CURR_INFLIGHT)
-				P := 0.0
-				if OUT != 0 {
-					P = (IN - (OUT + (requestq.INFLIGHT_LIMIT - requestq.CURR_INFLIGHT))) / OUT
-				} else {
-					P = (IN - (OUT + (requestq.INFLIGHT_LIMIT - requestq.CURR_INFLIGHT))) / requestq.INFLIGHT_LIMIT
-				}
-
-				fmt.Printf("P: %f\n", P)
-				if cq.CurrentCapacity() == MAX_HISTORY {
-					newTreshold := cq.PercentileDistribution(P)
-					fmt.Printf("NEW THRESHOLD: %d\n", newTreshold)
-					TIER_COHORT_THRESHOLD = newTreshold
-				}
-				fmt.Println("=========================================")
-				IN = 0.0
-				OUT = 0.0
-			}
-			mu.Unlock()
-		}
-	}
-}
-
 func main() {
-	pq := make(priorityq.PriorityQueue, 0)
-	var mutex sync.Mutex //Locking
-	service := &CinnamonServiceServer{
-		PriorityQueue: &pq,
-		mu:            &mutex,
-	}
+	pq := queues.NewPriorityQueue()
+	cq := queues.NewCircularQueue(cinnamon.MAX_HISTORY)
+	var mutex sync.Mutex //Lock shared across workers accessing queues
 
-	// keep track of last 1000 requests
-	cq := circularq.NewCircularQueue(MAX_HISTORY)
+	// Start the goroutine for timeout of items in pq, setting it to a second for now
+	// TODO DO Not share Mutex here
+	go queues.TimeoutItems(pq, cinnamon.MAX_AGE)
 
-	lis, err := net.Listen("tcp", ":8089")
-	if err != nil {
-		log.Fatalf("Cannot create listener: %s", err)
-	}
-	grpcServer := grpc.NewServer()
-	cinnamon.RegisterCinnamonServer(grpcServer, service)
-
-	go func() {
-		log.Println("gRPC server listening on :8089")
-		if err := grpcServer.Serve(lis); err != nil {
-			log.Fatalf("Failed to serve: %s", err)
-		}
-	}()
+	// Running every 10 seconds to check if pq is still full to update threshold
+	go cinnamon.LoadShed(pq, cq)
 
 	// Wait group to wait for all workers to finish
 	var wg sync.WaitGroup
 
-	// Start worker goroutines
-	for i := 0; i < NUM_WORKERS; i++ {
+	// Start worker goroutines to pull items from priority queue
+	for i := 0; i < cinnamon.NUM_WORKERS; i++ {
 		wg.Add(i)
-		go requestq.Worker(i, &pq, cq, &wg, &mutex, &OUT)
+		go cinnamon.Worker(i, pq, cq, &wg, &mutex)
 	}
 
-	// Start the goroutine for timeout of items in pq, setting it to a second for now
-	go priorityq.RemoveOldItems(&pq, MAX_AGE, &mutex)
+	// Create a new Chi router
+	r := chi.NewRouter()
 
-	// Running every 10 seconds to check if PQ is still full
-	go checkPriorityQueue(&pq, cq, &mutex)
+	// Attach the gRPC middleware to your Chi router
+	r.Use(cinnamon.CinnamonMiddleware(pq, &mutex))
 
-	// Keep the main goroutine running
-	select {}
+	// Add your other routes and middleware as needed
+	r.Get("/hello", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello"))
+	})
+
+	// Start the HTTP server
+	addr := ":8089"
+	server := &http.Server{
+		Addr:    addr,
+		Handler: r,
+	}
+
+	// Listen and serve
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
+	defer listener.Close()
+
+	log.Printf("Server listening on %s", addr)
+	if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
+		log.Fatalf("Server failed: %v", err)
+	}
 }

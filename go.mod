@@ -3,6 +3,7 @@ module github.com/abanuelo/cinnamon-go
 go 1.21.5
 
 require (
+	github.com/go-chi/chi v1.5.5
 	google.golang.org/grpc v1.60.1
 	google.golang.org/protobuf v1.32.0
 )

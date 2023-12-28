@@ -1,4 +1,4 @@
-package circularq
+package queues
 
 import (
 	"fmt"
