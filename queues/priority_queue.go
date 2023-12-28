@@ -92,6 +92,8 @@ func TimeoutItems(pq *PriorityQueue, maxAge time.Duration) {
 	for {
 		select {
 		case <-ticker.C:
+			fmt.Println("PQ AT THE MOMENT: ")
+			pq.PrintContents()
 			currentTime := time.Now()
 			if len(pq.items) > 0 && currentTime.Sub(((pq.items)[0].Arrival)) > maxAge {
 				item := pq.Dequeue()

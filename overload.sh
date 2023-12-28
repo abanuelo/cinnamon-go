@@ -4,7 +4,7 @@
 URL="http://localhost:8089/hello"
 
 # Number of requests to send
-NUM_REQUESTS=1000
+NUM_REQUESTS=500
 
 # Array to store responses
 responses=()

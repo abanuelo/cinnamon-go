@@ -21,7 +21,7 @@ func waitForChange(item *queues.Item, wg *sync.WaitGroup) {
 	}
 }
 
-func Intercept(ctx context.Context, req *InterceptRequest, pq *queues.PriorityQueue) (*InterceptResponse, error) {
+func Intercept(ctx context.Context, req *InterceptRequest) (*InterceptResponse, error) {
 	if int(req.Priority) <= TIER_COHORT_THRESHOLD {
 		item := queues.Item{
 			Method:   req.Method,
@@ -60,40 +60,74 @@ func Intercept(ctx context.Context, req *InterceptRequest, pq *queues.PriorityQu
 	}
 }
 
-// func CinnamonMiddleware(next http.Handler, pq *queues.PriorityQueue) http.Handler {
-func CinnamonMiddleware(pq *queues.PriorityQueue) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path[len(r.URL.Path)-1:] == "*" {
-				// If it does, skip the middleware and call the next handler directly
-				next.ServeHTTP(w, r)
-				return
-			}
-			// Seed the random number generator with the current time
-			rand.Seed(time.Now().UnixNano())
-
-			// Generate a random integer between 0 and 767
-			randomInteger := rand.Intn(768)
-
-			// Create a gRPC request
-			grpcRequest := &InterceptRequest{
-				Method:   r.Method,
-				Url:      r.URL.String(),
-				Priority: int64(randomInteger),
-				Arrival:  timestamppb.New(time.Now()),
-				Status:   *Status_PENDING.Enum(),
-			}
-
-			// Call the gRPC method on the main API
-			grpcResponse, err := Intercept(r.Context(), grpcRequest, pq)
-			if err != nil {
-				http.Error(w, fmt.Sprintf("Failed to call main API: %v", err), http.StatusInternalServerError)
-				return
-			}
-			fmt.Println(grpcResponse)
-
-			// Call the next handler in the chain
+// func CinnamonMiddleware(pq *queues.PriorityQueue) func(next http.Handler) http.Handler {
+// return func(next http.Handler) http.Handler {
+func CinnamonMiddleware(next http.Handler) http.Handler {
+	var pqOnce sync.Once
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path[len(r.URL.Path)-1:] == "*" {
+			// If it does, skip the middleware and call the next handler directly
 			next.ServeHTTP(w, r)
+			return
+		}
+		pqOnce.Do(func() {
+			main()
 		})
+
+		// Generate a random integer between 0 and 767
+		tierOne := rand.Intn(127)
+		tierFour := rand.Intn(639-511+1) + 511
+
+		var selectedValue int
+		if rand.Intn(2) == 0 {
+			selectedValue = tierOne
+		} else {
+			selectedValue = tierFour
+		}
+
+		// Create a gRPC request
+		grpcRequest := &InterceptRequest{
+			Method:   r.Method,
+			Url:      r.URL.String(),
+			Priority: int64(selectedValue),
+			Arrival:  timestamppb.New(time.Now()),
+			Status:   *Status_PENDING.Enum(),
+		}
+
+		// Call the gRPC method on the main API
+		grpcResponse, err := Intercept(r.Context(), grpcRequest)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to call main API: %v", err), http.StatusInternalServerError)
+			return
+		}
+		fmt.Println(grpcResponse)
+
+		// Call the next handler in the chain
+		next.ServeHTTP(w, r)
+	})
+	// }
+}
+
+var pq = queues.NewPriorityQueue()
+var cq = queues.NewCircularQueue(MAX_HISTORY)
+
+func main() {
+	// pq := queues.NewPriorityQueue()
+	// cq := queues.NewCircularQueue(MAX_HISTORY)
+	fmt.Println("Inside main for middleware.go")
+	// Start the goroutine for timeout of items in pq, setting it to a second for now
+	// TODO DO Not share Mutex here
+	go queues.TimeoutItems(pq, MAX_AGE)
+
+	// Running every 10 seconds to check if pq is still full to update threshold
+	go LoadShed(pq, cq)
+
+	// Wait group to wait for all workers to finish
+	var wg sync.WaitGroup
+	var mutex sync.Mutex //Lock shared across workers
+	// Start worker goroutines to pull items from priority queue
+	for i := 0; i < NUM_WORKERS; i++ {
+		wg.Add(i)
+		go Worker(i, pq, cq, &wg, &mutex)
 	}
 }
