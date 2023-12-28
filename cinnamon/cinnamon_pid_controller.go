@@ -14,7 +14,7 @@ func LoadShed(pq *queues.PriorityQueue, cq *queues.CircularQueue) {
 	for {
 		select {
 		case <-ticker.C:
-			fmt.Println("Job: Checking Priority Queue...")
+			fmt.Println("Job: Checking Priority Queue...", time.Now())
 			// Your job logic goes here
 			// mu.Lock()
 			if pq.Len() > 0 {
@@ -30,14 +30,16 @@ func LoadShed(pq *queues.PriorityQueue, cq *queues.CircularQueue) {
 				}
 
 				fmt.Printf("P: %f\n", P)
-				if cq.CurrentCapacity() == MAX_HISTORY {
-					newTreshold := cq.PercentileDistribution(P)
-					fmt.Printf("NEW THRESHOLD: %d\n", newTreshold)
-					TIER_COHORT_THRESHOLD = newTreshold
-				}
+				// if cq.CurrentCapacity() == MAX_HISTORY {
+				newTreshold := cq.PercentileDistribution(P)
+				fmt.Printf("NEW THRESHOLD: %d\n", newTreshold)
+				TIER_COHORT_THRESHOLD = newTreshold
+				// }
+				pq.PrintContents()
 				fmt.Println("=========================================")
-				IN = 0.0
-				OUT = 0.0
+				// TODO CHANGE THIS ONCE WE KNOW IT WORKS
+				// IN = 0.0
+				// OUT = 0.0
 			}
 			// mu.Unlock()
 		}

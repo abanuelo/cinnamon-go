@@ -1,10 +1,10 @@
 package cinnamon
 
 import (
-	"container/heap"
 	context "context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/http"
 	sync "sync"
 	"time"
@@ -18,13 +18,10 @@ func waitForChange(item *queues.Item, wg *sync.WaitGroup) {
 
 	for item.Status == int(Status_PENDING) {
 		time.Sleep(100 * time.Millisecond)
-		// fmt.Println("Sleeping...still at no")
 	}
-	// fmt.Println("item.Status value changed")
-	// fmt.Println(item.Status)
 }
 
-func Intercept(ctx context.Context, req *InterceptRequest, pq *queues.PriorityQueue, mu *sync.Mutex) (*InterceptResponse, error) {
+func Intercept(ctx context.Context, req *InterceptRequest, pq *queues.PriorityQueue) (*InterceptResponse, error) {
 	if int(req.Priority) <= TIER_COHORT_THRESHOLD {
 		item := queues.Item{
 			Method:   req.Method,
@@ -34,11 +31,11 @@ func Intercept(ctx context.Context, req *InterceptRequest, pq *queues.PriorityQu
 			Status:   int(Status_PENDING),
 		}
 		//TODO check if we even need the Mutex lock
-		mu.Lock()
-		heap.Push(pq, &item)
+		// mu.Lock()
+		pq.Enqueue(&item)
+		// heap.Push(pq, &item)
 		IN += 1
-		mu.Unlock()
-
+		// mu.Unlock()
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go waitForChange(&item, &wg)
@@ -64,7 +61,7 @@ func Intercept(ctx context.Context, req *InterceptRequest, pq *queues.PriorityQu
 }
 
 // func CinnamonMiddleware(next http.Handler, pq *queues.PriorityQueue) http.Handler {
-func CinnamonMiddleware(pq *queues.PriorityQueue, mu *sync.Mutex) func(next http.Handler) http.Handler {
+func CinnamonMiddleware(pq *queues.PriorityQueue) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path[len(r.URL.Path)-1:] == "*" {
@@ -72,19 +69,23 @@ func CinnamonMiddleware(pq *queues.PriorityQueue, mu *sync.Mutex) func(next http
 				next.ServeHTTP(w, r)
 				return
 			}
+			// Seed the random number generator with the current time
+			rand.Seed(time.Now().UnixNano())
+
+			// Generate a random integer between 0 and 767
+			randomInteger := rand.Intn(768)
 
 			// Create a gRPC request
-			// TODO need to change Priority to be intercepted from HTTP request
 			grpcRequest := &InterceptRequest{
 				Method:   r.Method,
 				Url:      r.URL.String(),
-				Priority: int64(TIER_COHORT_THRESHOLD),
+				Priority: int64(randomInteger),
 				Arrival:  timestamppb.New(time.Now()),
 				Status:   *Status_PENDING.Enum(),
 			}
 
 			// Call the gRPC method on the main API
-			grpcResponse, err := Intercept(r.Context(), grpcRequest, pq, mu)
+			grpcResponse, err := Intercept(r.Context(), grpcRequest, pq)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Failed to call main API: %v", err), http.StatusInternalServerError)
 				return

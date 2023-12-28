@@ -75,7 +75,9 @@ func (cq *CircularQueue) PercentileDistribution(percentile float64) int {
 
 	// Calculate the values at the specified percentiles
 	index := int(float64(len(sortedItems)-1) * percentile / 100.0)
+	fmt.Println("*******index: *********", index)
 	value := sortedItems[index]
+	fmt.Println("*******value: *********", value, sortedItems)
 
 	return value
 }

@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/abanuelo/cinnamon-go/cinnamon"
 	"github.com/abanuelo/cinnamon-go/queues"
@@ -15,7 +16,7 @@ import (
 func main() {
 	pq := queues.NewPriorityQueue()
 	cq := queues.NewCircularQueue(cinnamon.MAX_HISTORY)
-	var mutex sync.Mutex //Lock shared across workers accessing queues
+	var mutex sync.Mutex //Lock shared across workers
 
 	// Start the goroutine for timeout of items in pq, setting it to a second for now
 	// TODO DO Not share Mutex here
@@ -37,13 +38,28 @@ func main() {
 	r := chi.NewRouter()
 
 	// Attach the gRPC middleware to your Chi router
-	r.Use(cinnamon.CinnamonMiddleware(pq, &mutex))
+	r.Use(cinnamon.CinnamonMiddleware(pq))
 
 	// Add your other routes and middleware as needed
 	r.Get("/hello", func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(20 * time.Second)
 		fmt.Printf("HERE: Processed request: %s\n", "/hello")
 		cinnamon.CURR_INFLIGHT -= 1
 		w.Write([]byte("Hello"))
+	})
+
+	r.Get("/world", func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(5 * time.Second)
+		fmt.Printf("HERE: Processed request: %s\n", "/world")
+		cinnamon.CURR_INFLIGHT -= 1
+		w.Write([]byte("World"))
+	})
+
+	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(2 * time.Second)
+		fmt.Printf("HERE: Processed request: %s\n", "/test")
+		cinnamon.CURR_INFLIGHT -= 1
+		w.Write([]byte("Test"))
 	})
 
 	// Start the HTTP server
