@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/abanuelo/cinnamon-go/circularq"
 	"github.com/abanuelo/cinnamon-go/priorityq"
 )
 
@@ -20,7 +21,7 @@ func processRequest(req priorityq.Item) {
 	CURR_INFLIGHT -= 1
 }
 
-func Worker(worker int, pq *priorityq.PriorityQueue, wg *sync.WaitGroup, mu *sync.Mutex, OUT *float64) {
+func Worker(worker int, pq *priorityq.PriorityQueue, cq *circularq.CircularQueue, wg *sync.WaitGroup, mu *sync.Mutex, OUT *float64) {
 	defer wg.Done()
 	for {
 		if CURR_INFLIGHT+1 < INFLIGHT_LIMIT {
@@ -29,6 +30,7 @@ func Worker(worker int, pq *priorityq.PriorityQueue, wg *sync.WaitGroup, mu *syn
 				CURR_INFLIGHT += 1
 				fmt.Printf("Current CURR_INFLIGHT: %f with worker id: %d\n", CURR_INFLIGHT, worker)
 				req := heap.Pop(pq).(*priorityq.Item)
+				cq.Enqueue(req.Priority)
 				*OUT += 1
 				req.Processed = "processed"
 				mu.Unlock()

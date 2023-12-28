@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/abanuelo/cinnamon-go/cinnamon"
+	"github.com/abanuelo/cinnamon-go/circularq"
 	"github.com/abanuelo/cinnamon-go/priorityq"
 	"github.com/abanuelo/cinnamon-go/requestq"
 	"google.golang.org/grpc"
@@ -22,6 +23,7 @@ var NUM_WORKERS = 2
 var MAX_AGE = 1 * time.Second
 var IN float64 = 0.0
 var OUT float64 = 0.0
+var MAX_HISTORY = 1000
 
 type CinnamonServiceServer struct {
 	cinnamon.UnimplementedCinnamonServer
@@ -77,7 +79,7 @@ func (s CinnamonServiceServer) Intercept(ctx context.Context, req *cinnamon.Inte
 	}
 }
 
-func checkPriorityQueue(pq *priorityq.PriorityQueue, mu *sync.Mutex) {
+func checkPriorityQueue(pq *priorityq.PriorityQueue, cq *circularq.CircularQueue, mu *sync.Mutex) {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
@@ -100,6 +102,11 @@ func checkPriorityQueue(pq *priorityq.PriorityQueue, mu *sync.Mutex) {
 				}
 
 				fmt.Printf("P: %f\n", P)
+				if cq.CurrentCapacity() == MAX_HISTORY {
+					newTreshold := cq.PercentileDistribution(P)
+					fmt.Printf("NEW THRESHOLD: %d\n", newTreshold)
+					TIER_COHORT_THRESHOLD = newTreshold
+				}
 				fmt.Println("=========================================")
 				IN = 0.0
 				OUT = 0.0
@@ -116,6 +123,9 @@ func main() {
 		PriorityQueue: &pq,
 		mu:            &mutex,
 	}
+
+	// keep track of last 1000 requests
+	cq := circularq.NewCircularQueue(MAX_HISTORY)
 
 	lis, err := net.Listen("tcp", ":8089")
 	if err != nil {
@@ -137,14 +147,14 @@ func main() {
 	// Start worker goroutines
 	for i := 0; i < NUM_WORKERS; i++ {
 		wg.Add(i)
-		go requestq.Worker(i, &pq, &wg, &mutex, &OUT)
+		go requestq.Worker(i, &pq, cq, &wg, &mutex, &OUT)
 	}
 
 	// Start the goroutine for timeout of items in pq, setting it to a second for now
 	go priorityq.RemoveOldItems(&pq, MAX_AGE, &mutex)
 
 	// Running every 10 seconds to check if PQ is still full
-	go checkPriorityQueue(&pq, &mutex)
+	go checkPriorityQueue(&pq, cq, &mutex)
 
 	// Keep the main goroutine running
 	select {}
