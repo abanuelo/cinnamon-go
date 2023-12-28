@@ -73,14 +73,6 @@ func CinnamonMiddleware(pq *queues.PriorityQueue, mu *sync.Mutex) func(next http
 				return
 			}
 
-			// Set up a gRPC client connection to the main API
-			// grpcConn, err := grpc.Dial(":8089", grpc.WithTransportCredentials(insecure.NewCredentials()))
-			// if err != nil {
-			// 	http.Error(w, "Failed to connect to main API", http.StatusInternalServerError)
-			// 	return
-			// }
-			// defer grpcConn.Close()
-
 			// Create a gRPC request
 			// TODO need to change Priority to be intercepted from HTTP request
 			grpcRequest := &InterceptRequest{
@@ -90,6 +82,7 @@ func CinnamonMiddleware(pq *queues.PriorityQueue, mu *sync.Mutex) func(next http
 				Arrival:  timestamppb.New(time.Now()),
 				Status:   *Status_PENDING.Enum(),
 			}
+
 			// Call the gRPC method on the main API
 			grpcResponse, err := Intercept(r.Context(), grpcRequest, pq, mu)
 			if err != nil {

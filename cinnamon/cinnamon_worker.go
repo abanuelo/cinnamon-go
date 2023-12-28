@@ -4,17 +4,16 @@ import (
 	"container/heap"
 	"fmt"
 	sync "sync"
-	"time"
 
 	"github.com/abanuelo/cinnamon-go/queues"
 )
 
-func processRequest(req queues.Item) {
-	// Simulate processing time
-	time.Sleep(5 * time.Second)
-	fmt.Printf("HERE: Processed request %d: %s\n", req.Priority, req.Url)
-	CURR_INFLIGHT -= 1
-}
+// func processRequest(req queues.Item) {
+// 	// Simulate processing time
+// 	time.Sleep(5 * time.Second)
+// 	fmt.Printf("HERE: Processed request %d: %s\n", req.Priority, req.Url)
+// 	CURR_INFLIGHT -= 1
+// }
 
 func Worker(worker int, pq *queues.PriorityQueue, cq *queues.CircularQueue, wg *sync.WaitGroup, mu *sync.Mutex) {
 	defer wg.Done()
@@ -31,7 +30,7 @@ func Worker(worker int, pq *queues.PriorityQueue, cq *queues.CircularQueue, wg *
 				OUT += 1
 				req.Status = int(Status_OK)
 				mu.Unlock()
-				go processRequest(*req)
+				// go processRequest(*req)
 			} else {
 				// fmt.Printf("PQ is empty!!!!!!!!!!")
 				mu.Unlock()

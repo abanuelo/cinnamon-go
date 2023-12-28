@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -40,6 +41,8 @@ func main() {
 
 	// Add your other routes and middleware as needed
 	r.Get("/hello", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Printf("HERE: Processed request: %s\n", "/hello")
+		cinnamon.CURR_INFLIGHT -= 1
 		w.Write([]byte("Hello"))
 	})
 
