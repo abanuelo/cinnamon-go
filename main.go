@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -20,22 +19,22 @@ func main() {
 
 	// Add your other routes and middleware as needed
 	r.Get("/hello", func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(20 * time.Second)
-		fmt.Printf("HERE: Processed request: %s\n", "/hello")
+		time.Sleep(8 * time.Second)
+		// fmt.Printf("HERE: Processed request: %s\n", "/hello")
 		cinnamon.CURR_INFLIGHT -= 1
 		w.Write([]byte("Hello"))
 	})
 
 	r.Get("/world", func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(5 * time.Second)
-		fmt.Printf("HERE: Processed request: %s\n", "/world")
+		// fmt.Printf("HERE: Processed request: %s\n", "/world")
 		cinnamon.CURR_INFLIGHT -= 1
 		w.Write([]byte("World"))
 	})
 
 	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
 		// time.Sleep(2 * time.Second)
-		fmt.Printf("HERE: Processed request: %s\n", "/test")
+		// fmt.Printf("HERE: Processed request: %s\n", "/test")
 		cinnamon.CURR_INFLIGHT -= 1
 		w.Write([]byte("Test"))
 	})

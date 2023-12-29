@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Define the URL to send requests to
-URL="http://localhost:8089/test"
+URL="http://localhost:8089/hello"
 
 # Number of requests to send
-NUM_REQUESTS=10
+NUM_REQUESTS=100
 
 # Array to store responses
 responses=()

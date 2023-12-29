@@ -1,58 +1,62 @@
 package cinnamon
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	sync "sync"
+	"time"
 
-	"github.com/abanuelo/cinnamon-go/queues"
 	"github.com/adrianbrad/queue"
 )
 
-// func Worker(worker int, pq *queues.PriorityQueue, cq *queues.CircularQueue, wg *sync.WaitGroup, mu *sync.Mutex) {
-// 	defer wg.Done()
-// 	for {
-// 		mu.Lock()
-// 		if CURR_INFLIGHT+1 < INFLIGHT_LIMIT {
-// 			if pq.Len() > 0 {
-// 				req := pq.Dequeue()
-// 				req.Status = int(Status_OK)
-// 				CURR_INFLIGHT += 1
-// 				fmt.Printf("Current CURR_INFLIGHT: %f with worker id: %d\n", CURR_INFLIGHT, worker)
-// 				cq.Enqueue(int(req.Priority))
-// 				OUT += 1
-// 				mu.Unlock()
-// 			} else {
-// 				mu.Unlock()
-// 			}
-// 		} else {
-// 			mu.Unlock()
-// 		}
-// 	}
-// }
+func writeToFile(item Item) {
+	f, err := os.OpenFile("priority_queue.txt", os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-func Worker(worker int, pq *queue.Priority[queues.Item], wg *sync.WaitGroup, mu *sync.Mutex) {
-	defer wg.Done()
+	out, err := json.Marshal(item)
+	if err != nil {
+		fmt.Println("Error with JSON marshal")
+	}
+
+	newLine := string(out)
+	_, err = fmt.Fprintln(f, newLine)
+	if err != nil {
+		fmt.Println(err)
+		f.Close()
+		return
+	}
+	err = f.Close()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	// fmt.Println("file appended successfully")
+}
+
+func Worker(worker int, pq *queue.Priority[Item], wg *sync.WaitGroup) {
+	// defer wg.Done()
 	for {
-		// mu.Lock()
 		if CURR_INFLIGHT+1 < INFLIGHT_LIMIT {
 			if pq.Size() > 0 {
 				elem, err := pq.Get()
 				if err != nil {
-					// handle err
-					fmt.Println("Error handling Get() inside Worker", err)
+					fmt.Println("[ERROR] - Get() inside Worker for priority queue: ", err)
+					return
 				}
-				elem.Status = int(Status_OK)
-				fmt.Println("Element dequeued and ready for work: ", elem)
+				writeToFile(elem)
 				CURR_INFLIGHT += 1
-				fmt.Printf("Current CURR_INFLIGHT: %f with worker id: %d\n", CURR_INFLIGHT, worker)
-				// cq.Enqueue(int(req.Priority))
+				// add to the inflight queue
+				if err := iq.Offer(elem); err != nil {
+					fmt.Println("[ERROR] - Offer() inside Worker inside inflight queue: ", err)
+				}
 				OUT += 1
-				// mu.Unlock()
-			} else {
-				// mu.Unlock()
+				// fmt.Printf("Current CURR_INFLIGHT: %f with worker id: %d\n", CURR_INFLIGHT, worker)
 			}
-		} else {
-			// mu.Unlock()
 		}
+		time.Sleep(5 * time.Second)
 	}
 }
