@@ -10,48 +10,54 @@ import (
 	"time"
 
 	"github.com/abanuelo/cinnamon-go/queues"
+	"github.com/adrianbrad/queue"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func waitForChange(item *queues.Item, wg *sync.WaitGroup) {
+func waitForChange(item queues.Item, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	for item.Status == int(Status_PENDING) {
-		time.Sleep(100 * time.Millisecond)
+	for pq.Contains(item) {
+		fmt.Println("Waiting: .... but here is the queue size: ", pq.Size())
+		time.Sleep(500 * time.Millisecond)
 	}
+
+	// for item.Status == int(Status_PENDING) {
+	// 	time.Sleep(5 * time.Second)
+	// 	fmt.Println("item: ", item)
+	// }
+	fmt.Println("item dequeued: ", item)
 }
 
 func Intercept(ctx context.Context, req *InterceptRequest) (*InterceptResponse, error) {
 	if int(req.Priority) <= TIER_COHORT_THRESHOLD {
 		item := queues.Item{
-			Method:   req.Method,
-			Url:      req.Url,
 			Priority: req.Priority,
 			Arrival:  time.Now(),
 			Status:   int(Status_PENDING),
 		}
-		//TODO check if we even need the Mutex lock
-		// mu.Lock()
-		pq.Enqueue(&item)
-		// heap.Push(pq, &item)
+		if err := pq.Offer(item); err != nil {
+			// handle err
+			fmt.Println("Error inserting into queue with Offer(): ", err)
+		}
 		IN += 1
-		// mu.Unlock()
+
 		var wg sync.WaitGroup
 		wg.Add(1)
-		go waitForChange(&item, &wg)
-
+		go waitForChange(item, &wg)
 		wg.Wait()
 
 		fmt.Println(item)
 
-		if item.Status == int(Status_OK) {
-			return &InterceptResponse{
-				Accepted: true,
-				Message:  "Processing request successfully",
-			}, nil
-		}
+		// TODO create a timeout queue and/or figure out how to status in item
+		// if item.Status == int(Status_OK) {
+		return &InterceptResponse{
+			Accepted: true,
+			Message:  "Processing request successfully",
+		}, nil
+		// }
 		// } else if item.Status == int(Status_ERROR) {
-		return nil, errors.New("Timeout in queue!")
+		// return nil, errors.New("Timeout in queue!")
 		// }
 
 	} else {
@@ -108,8 +114,17 @@ func CinnamonMiddleware(next http.Handler) http.Handler {
 	// }
 }
 
-var pq = queues.NewPriorityQueue()
-var cq = queues.NewCircularQueue(MAX_HISTORY)
+var elems []queues.Item
+
+var pq = queue.NewPriority(
+	elems,
+	func(elem, otherElem queues.Item) bool { return elem.Priority < otherElem.Priority },
+)
+
+// timeout queue
+// var tq = queue.(elems, 0)
+
+// var cq = queues.NewCircularQueue(MAX_HISTORY)
 
 func main() {
 	// pq := queues.NewPriorityQueue()
@@ -120,7 +135,8 @@ func main() {
 	go queues.TimeoutItems(pq, MAX_AGE)
 
 	// Running every 10 seconds to check if pq is still full to update threshold
-	go LoadShed(pq, cq)
+	// go LoadShed(pq, cq)
+	go LoadShed(pq)
 
 	// Wait group to wait for all workers to finish
 	var wg sync.WaitGroup
@@ -128,6 +144,7 @@ func main() {
 	// Start worker goroutines to pull items from priority queue
 	for i := 0; i < NUM_WORKERS; i++ {
 		wg.Add(i)
-		go Worker(i, pq, cq, &wg, &mutex)
+		// go Worker(i, pq, cq, &wg, &mutex)
+		go Worker(i, pq, &wg, &mutex)
 	}
 }
