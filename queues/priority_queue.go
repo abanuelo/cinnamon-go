@@ -95,7 +95,14 @@ func TimeoutItems(pq *PriorityQueue, maxAge time.Duration) {
 			fmt.Println("PQ AT THE MOMENT: ")
 			pq.PrintContents()
 			currentTime := time.Now()
+
 			if len(pq.items) > 0 && currentTime.Sub(((pq.items)[0].Arrival)) > maxAge {
+				fmt.Println("****************************************")
+				fmt.Println("Current time: ", currentTime)
+				fmt.Println("Arrival time: ", (pq.items)[0].Arrival)
+				fmt.Println("Current time - Arrival time: ", currentTime.Sub(((pq.items)[0].Arrival)))
+				fmt.Println("Max Age: ", maxAge)
+				fmt.Println("****************************************")
 				item := pq.Dequeue()
 				item.Status = 1
 			}

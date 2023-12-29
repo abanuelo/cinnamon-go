@@ -21,26 +21,34 @@ func NewCircularQueue(size int) *CircularQueue {
 		items: make([]int, size),
 		size:  size,
 		head:  0,
-		tail:  -1,
+		tail:  0,
 	}
 }
 
 // CurrentCapacity returns the current capacity of the circular queue
-func (cq *CircularQueue) CurrentCapacity() int {
-	cq.mu.Lock()
-	defer cq.mu.Unlock()
+// func (cq *CircularQueue) CurrentCapacity() int {
+// 	cq.mu.Lock()
+// 	defer cq.mu.Unlock()
 
-	// Calculate the number of elements in the queue
-	count := 0
-	for i := 0; i < cq.size; i++ {
-		idx := (cq.head + i) % cq.size
-		if cq.items[idx] != 0 {
-			count++
-		}
-	}
+// 	// Calculate the number of elements in the queue
+// 	count := 0
+// 	for i := 0; i < cq.size; i++ {
+// 		idx := (cq.head + i) % cq.size
+// 		if cq.items[idx] != 0 {
+// 			count++
+// 		}
+// 	}
 
-	return count
-}
+// 	return count
+// }
+
+// IsFull returns true if queue is full
+// func (cq *CircularQueue) IsFull() bool {
+// 	if cq.head == (cq.tail+1)%cq.size {
+// 		return true
+// 	}
+// 	return false
+// }
 
 // Enqueue adds an item to the queue, bumping out the oldest item if necessary
 func (cq *CircularQueue) Enqueue(item int) {

@@ -14,12 +14,11 @@ func Worker(worker int, pq *queues.PriorityQueue, cq *queues.CircularQueue, wg *
 		if CURR_INFLIGHT+1 < INFLIGHT_LIMIT {
 			if pq.Len() > 0 {
 				req := pq.Dequeue()
-				req.Status = int(Status_ERROR)
+				req.Status = int(Status_OK)
 				CURR_INFLIGHT += 1
 				fmt.Printf("Current CURR_INFLIGHT: %f with worker id: %d\n", CURR_INFLIGHT, worker)
 				cq.Enqueue(int(req.Priority))
 				OUT += 1
-				req.Status = int(Status_OK)
 				mu.Unlock()
 			} else {
 				mu.Unlock()

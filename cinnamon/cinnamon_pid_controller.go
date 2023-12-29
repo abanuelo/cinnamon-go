@@ -31,11 +31,12 @@ func LoadShed(pq *queues.PriorityQueue, cq *queues.CircularQueue) {
 
 				fmt.Printf("P: %f\n", P)
 				// if cq.CurrentCapacity() == MAX_HISTORY {
+				cq.PrintQueue()
 				newTreshold := cq.PercentileDistribution(P)
 				fmt.Printf("NEW THRESHOLD: %d\n", newTreshold)
 				// TIER_COHORT_THRESHOLD = newTreshold
 				// }
-				pq.PrintContents()
+				// pq.PrintContents()
 				fmt.Println("=========================================")
 				// TODO CHANGE THIS ONCE WE KNOW IT WORKS
 				// IN = 0.0
