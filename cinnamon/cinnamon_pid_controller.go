@@ -15,13 +15,13 @@ func LoadShed(pq *queue.Priority[Item]) {
 		select {
 		case <-ticker.C:
 			fmt.Println("Job: Checking Priority Queue...", time.Now())
-			// Your job logic goes here
-			// mu.Lock()
 			if pq.Size() > 0 {
 				fmt.Println("=========================================")
 				fmt.Println("IN NEED OF PID CONTROLLER")
-				fmt.Println(IN, OUT)
-				fmt.Println(INFLIGHT_LIMIT, CURR_INFLIGHT)
+				fmt.Println("IN: ", IN)
+				fmt.Println("OUT: ", OUT)
+				fmt.Println("INFLIGHT_LIMIT: ", INFLIGHT_LIMIT)
+				fmt.Println("CURR_INFLIGHT: ", CURR_INFLIGHT)
 				P := 0.0
 				if OUT != 0 {
 					P = (IN - (OUT + (INFLIGHT_LIMIT - CURR_INFLIGHT))) / OUT
@@ -30,19 +30,14 @@ func LoadShed(pq *queue.Priority[Item]) {
 				}
 
 				fmt.Printf("P: %f\n", P)
-				// if cq.CurrentCapacity() == MAX_HISTORY {
-				// cq.PrintQueue()
-				// newTreshold := cq.PercentileDistribution(P)
-				// fmt.Printf("NEW THRESHOLD: %d\n", newTreshold)
-				// TIER_COHORT_THRESHOLD = newTreshold
-				// }
-				// pq.PrintContents()
+				// TODO CALCULATE CDF of last 1000 seen items in IQ
+				// TODO Update threshold on that calculation
 				fmt.Println("=========================================")
+				// Update IN and OUT to zero
 				// TODO CHANGE THIS ONCE WE KNOW IT WORKS
 				// IN = 0.0
 				// OUT = 0.0
 			}
-			// mu.Unlock()
 		}
 	}
 }

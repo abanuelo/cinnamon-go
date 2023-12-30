@@ -4,14 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	sync "sync"
-	"time"
 
 	"github.com/adrianbrad/queue"
 )
 
 func writeToFile(item Item) {
-	f, err := os.OpenFile("priority_queue.txt", os.O_APPEND|os.O_WRONLY, 0644)
+	f, err := os.OpenFile("t.txt", os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -34,17 +32,19 @@ func writeToFile(item Item) {
 		fmt.Println(err)
 		return
 	}
-	// fmt.Println("file appended successfully")
 }
 
-func Worker(worker int, pq *queue.Priority[Item], wg *sync.WaitGroup) {
-	// defer wg.Done()
+func Worker(worker int, pq *queue.Priority[Item]) {
 	for {
 		if CURR_INFLIGHT+1 < INFLIGHT_LIMIT {
 			if pq.Size() > 0 {
 				elem, err := pq.Get()
 				if err != nil {
 					fmt.Println("[ERROR] - Get() inside Worker for priority queue: ", err)
+					return
+				}
+				if tq.Contains(elem) {
+					fmt.Println("No action with dequeued item, has timed out")
 					return
 				}
 				writeToFile(elem)
@@ -54,9 +54,7 @@ func Worker(worker int, pq *queue.Priority[Item], wg *sync.WaitGroup) {
 					fmt.Println("[ERROR] - Offer() inside Worker inside inflight queue: ", err)
 				}
 				OUT += 1
-				// fmt.Printf("Current CURR_INFLIGHT: %f with worker id: %d\n", CURR_INFLIGHT, worker)
 			}
 		}
-		time.Sleep(5 * time.Second)
 	}
 }

@@ -26,7 +26,7 @@ var OUT float64 = 0.0
 var MAX_HISTORY = 1000
 
 // Inflight Request Limit to Forward Requests
-var INFLIGHT_LIMIT float64 = 100.0
+var INFLIGHT_LIMIT float64 = 20000.0
 var CURR_INFLIGHT float64 = 0.0
 
 var CIRCULAR_QUEUE_LENGTH = 1000

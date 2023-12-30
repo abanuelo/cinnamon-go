@@ -26,7 +26,7 @@ func main() {
 	})
 
 	r.Get("/world", func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(5 * time.Second)
+		time.Sleep(1 * time.Second)
 		// fmt.Printf("HERE: Processed request: %s\n", "/world")
 		cinnamon.CURR_INFLIGHT -= 1
 		w.Write([]byte("World"))
